@@ -1,18 +1,29 @@
-package test
+package gos7_test
 
 // Copyright 2018 Trung Hieu Le. All rights reserved.
 // This software may be modified and distributed under the terms
 // of the BSD license. See the LICENSE file for details.
 import (
 	"encoding/binary"
+	"fmt"
+	"log"
+	"os"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
-	"../../gos7"
+	"github.com/robinson/gos7"
 )
 
-//ClientTestAll client test all
+const (
+	tcpDevice = "192.168.72.129"
+	rack      = 0
+	slot      = 2
+)
+
+// ClientTestAll client test all
 func ClientTestAll(t *testing.T, client gos7.Client) {
 	//write value to 100
 	ClientTestWriteIntDB(t, client, 100)
@@ -34,8 +45,12 @@ func ClientTestAll(t *testing.T, client gos7.Client) {
 	ClientAGReadMulti(t, client)
 }
 
-//ClientTestWriteIntDB client test write int
+// ClientTestWriteIntDB client test write int
 func ClientTestWriteIntDB(t *testing.T, client gos7.Client, value int16) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	address := 2710
 	start := 8
 	size := 2
@@ -51,8 +66,12 @@ func ClientTestWriteIntDB(t *testing.T, client gos7.Client, value int16) {
 	AssertEquals(t, err, nil) // send success then the response in position 6 will be 128
 }
 
-//ClientTestReadIntDB client test read int
+// ClientTestReadIntDB client test read int
 func ClientTestReadIntDB(t *testing.T, client gos7.Client) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	address := 2710
 	start := 8
 	size := 2
@@ -68,8 +87,12 @@ func ClientTestReadIntDB(t *testing.T, client gos7.Client) {
 	AssertEquals(t, 100, int(result))
 }
 
-//ClientTestDirectory test directory functions, list all blocks
+// ClientTestDirectory test directory functions, list all blocks
 func ClientTestDirectory(t *testing.T, client gos7.Client) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	//var bl gos7.S7BlocksList
 	bl, err := client.PGListBlocks()
 	if err != nil {
@@ -81,8 +104,12 @@ func ClientTestDirectory(t *testing.T, client gos7.Client) {
 	AssertEquals(t, len(bl.FBList), 81)
 }
 
-//ClientTestGetCPUInfo get the CPU info
+// ClientTestGetCPUInfo get the CPU info
 func ClientTestGetCPUInfo(t *testing.T, client gos7.Client) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	info, err := client.GetCPUInfo()
 	if err != nil {
 		t.Fatal(err)
@@ -90,8 +117,12 @@ func ClientTestGetCPUInfo(t *testing.T, client gos7.Client) {
 	AssertEquals(t, strings.Index(info.SerialNumber, "0118701484"), 0) //return serial should be "0118701484        ", some space
 }
 
-//ClientTestGetAGBlockInfo get AG block info
+// ClientTestGetAGBlockInfo get AG block info
 func ClientTestGetAGBlockInfo(t *testing.T, client gos7.Client) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	info, err := client.GetAgBlockInfo(65, 2710)
 	if err != nil {
 		t.Fatal(err)
@@ -99,8 +130,12 @@ func ClientTestGetAGBlockInfo(t *testing.T, client gos7.Client) {
 	AssertEquals(t, info.CodeDate, "22.01.2018")
 }
 
-//ClientPLCGetStatus get PLC status
+// ClientPLCGetStatus get PLC status
 func ClientPLCGetStatus(t *testing.T, client gos7.Client) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	status, err := client.PLCGetStatus()
 	if err != nil {
 		t.Fatal(err)
@@ -108,15 +143,19 @@ func ClientPLCGetStatus(t *testing.T, client gos7.Client) {
 	AssertEquals(t, status, 8) //8=running, 4=stop, 0=unknown
 }
 
-//ClientAGReadMulti read multi client
+// ClientAGReadMulti read multi client
 func ClientAGReadMulti(t *testing.T, client gos7.Client) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	data1 := make([]byte, 1024)
 	data2 := make([]byte, 1024)
 	data3 := make([]byte, 1024)
 	var error1, error2, error3 string
 
 	var items = []gos7.S7DataItem{
-		gos7.S7DataItem{
+		{
 			Area:     0x84,
 			WordLen:  0x02,
 			DBNumber: 2710,
@@ -125,7 +164,7 @@ func ClientAGReadMulti(t *testing.T, client gos7.Client) {
 			Data:     data1,
 			Error:    error1,
 		},
-		gos7.S7DataItem{
+		{
 			Area:     0x84,
 			WordLen:  0x02,
 			DBNumber: 2810,
@@ -134,7 +173,7 @@ func ClientAGReadMulti(t *testing.T, client gos7.Client) {
 			Data:     data2,
 			Error:    error2,
 		},
-		gos7.S7DataItem{
+		{
 			Area:     0x84,
 			WordLen:  0x02,
 			DBNumber: 2910,
@@ -157,8 +196,12 @@ func ClientAGReadMulti(t *testing.T, client gos7.Client) {
 	AssertEquals(t, value3, uint16(0))
 }
 
-//ClientAGWriteMulti read multi client
+// ClientAGWriteMulti read multi client
 func ClientAGWriteMulti(t *testing.T, client gos7.Client) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
 	data1 := make([]byte, 1024)
 	data2 := make([]byte, 1024)
 	data3 := make([]byte, 1024)
@@ -170,7 +213,7 @@ func ClientAGWriteMulti(t *testing.T, client gos7.Client) {
 	var error1, error2, error3 string
 
 	var items = []gos7.S7DataItem{
-		gos7.S7DataItem{
+		{
 			Area:     0x84,
 			WordLen:  0x02,
 			DBNumber: 2710,
@@ -179,7 +222,7 @@ func ClientAGWriteMulti(t *testing.T, client gos7.Client) {
 			Data:     data1,
 			Error:    error1,
 		},
-		gos7.S7DataItem{
+		{
 			Area:     0x84,
 			WordLen:  0x02,
 			DBNumber: 2810,
@@ -188,7 +231,7 @@ func ClientAGWriteMulti(t *testing.T, client gos7.Client) {
 			Data:     data2,
 			Error:    error2,
 		},
-		gos7.S7DataItem{
+		{
 			Area:     0x84,
 			WordLen:  0x02,
 			DBNumber: 2910,
@@ -209,7 +252,7 @@ func ClientAGWriteMulti(t *testing.T, client gos7.Client) {
 	AssertEquals(t, "", error1)
 }
 
-//AssertEquals helper
+// AssertEquals helper
 func AssertEquals(t *testing.T, expected, actual interface{}) {
 	_, file, line, ok := runtime.Caller(1)
 	if !ok {
@@ -228,4 +271,84 @@ func AssertEquals(t *testing.T, expected, actual interface{}) {
 			expected, expected, actual, actual)
 		t.FailNow()
 	}
+}
+
+func TestTCPClient(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	handler := gos7.NewTCPClientHandler(tcpDevice, rack, slot)
+	handler.Timeout = 200 * time.Second
+	handler.IdleTimeout = 200 * time.Second
+	handler.Logger = log.New(os.Stdout, "tcp: ", log.LstdFlags)
+	handler.Connect()
+	defer handler.Close()
+	client := gos7.NewClient(handler)
+	ClientTestAll(t, client)
+}
+
+func TestMultiTCPClient(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	var handlers sync.Map
+	var clients sync.Map
+
+	tcpDevices := make([]map[string]string, 2)
+	tcpDevices[0] = make(map[string]string, 1)
+	tcpDevices[1] = make(map[string]string, 1)
+	tcpDevices[0]["tcpDevice"] = "192.168.10.19:102"
+	tcpDevices[1]["tcpDevice"] = "192.168.10.10:102"
+
+	c := make(chan int)
+
+	for k := range tcpDevices {
+		go func(device map[string]string) {
+			handler := gos7.NewTCPClientHandler(tcpDevice, rack, slot)
+			handler.Timeout = 200 * time.Second
+			handler.IdleTimeout = 200 * time.Second
+			handler.Logger = log.New(os.Stdout, "tcp: ", log.LstdFlags)
+			handler.Address = device["tcpDevice"]
+			handler.Connect()
+			handlers.Store(device["tcpDevice"], handler)
+
+			client := gos7.NewClient(handler)
+			clients.Store(device["tcpDevice"], client)
+
+			c <- 1
+		}(tcpDevices[k])
+	}
+
+	var cS []int
+
+	for n := range c {
+		cS = append(cS, n)
+		if len(cS) == len(tcpDevices) {
+			close(c)
+			break
+		}
+	}
+
+	cli, exist := clients.Load("192.168.10.10:102")
+	client, ok := cli.(gos7.Client)
+	if exist && ok {
+		buf := make([]byte, 255)
+		client.AGReadDB(200, 34, 4, buf)
+		var s7 gos7.Helper
+		var result float32
+		s7.GetValueAt(buf, 0, &result)
+		fmt.Printf("%v\n", result)
+	}
+
+	defer func() {
+		handlers.Range(func(key, value interface{}) bool {
+			h, _ := handlers.Load(key)
+			if hh, ok := h.(*gos7.TCPClientHandler); ok {
+				hh.Close()
+			}
+			return true
+		})
+	}()
 }
